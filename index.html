@@ -68,6 +68,13 @@ input[type=number]{-moz-appearance:textfield}
 .tbl .cpl-r td{font-weight:700;border-bottom:none;padding-top:3px;padding-bottom:8px}
 .grand-txt{font-size:.78rem;color:#888;margin-bottom:10px}
 .dl-row{display:flex;gap:10px;margin-bottom:10px}
+.payer-select{width:100%;padding:9px 10px;border:1.5px solid #d8dde6;border-radius:8px;font-size:.82rem;color:#222;background:#fff;outline:none}
+.payer-select:focus{border-color:#2d7dd2}
+.settle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f0f0f0;font-size:.85rem;color:#333}
+.settle-row:last-child{border-bottom:none}
+.settle-amt{font-weight:700;color:#1a2340;white-space:nowrap}
+.settle-arrow{color:#2d7dd2;font-weight:700;margin:0 4px}
+.net-row{display:flex;justify-content:space-between;font-size:.8rem;padding:4px 0;color:#666}
 .hd0{background:#e0f2fe;color:#0369a1}.c0{color:#0369a1}.dot0{background:#0369a1}.pill0{background:#e0f2fe;color:#0369a1;border-color:#7dd3fc}
 .hd1{background:#dcfce7;color:#15803d}.c1{color:#15803d}.dot1{background:#15803d}.pill1{background:#dcfce7;color:#15803d;border-color:#86efac}
 .hd2{background:#fef3c7;color:#92400e}.c2{color:#92400e}.dot2{background:#92400e}.pill2{background:#fef3c7;color:#92400e;border-color:#fcd34d}
@@ -83,7 +90,12 @@ input[type=number]{-moz-appearance:textfield}
 .auth-err{background:#fee2e2;color:#b91c1c;font-size:.78rem;padding:9px 12px;border-radius:8px;margin-top:14px;display:none}
 .auth-link{display:block;text-align:center;margin-top:14px;font-size:.74rem;color:#2d7dd2;cursor:pointer;text-decoration:underline}
 .topbar-row{display:flex;align-items:center;justify-content:space-between}
+.topbar-row .actions{display:flex;gap:8px}
 .btn-lock{background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:.72rem;font-weight:600;cursor:pointer}
+.profile-label{background:#eff6ff;color:#2d7dd2;font-size:.72rem;font-weight:700;padding:7px 14px;text-align:center}
+.profile-row{display:flex;align-items:center;gap:8px;background:#f8f9fb;border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:9px}
+.profile-row .pname{flex:1;font-weight:700;font-size:.88rem;color:#222;cursor:pointer}
+.profile-open{background:#1a7a3c;color:#fff;border:none;border-radius:7px;padding:7px 13px;font-size:.76rem;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -93,9 +105,23 @@ input[type=number]{-moz-appearance:textfield}
   <div class="auth-card" id="authCard"></div>
 </div>
 
+<!-- ===== SETUP PICKER ===== -->
+<div class="auth-screen" id="profileScreen" style="display:none">
+  <div class="auth-card">
+    <h2>Choose a Setup</h2>
+    <div class="sub">Open an existing setup or create a new one. Each setup keeps its own groups &amp; bills.</div>
+    <div id="profileList"></div>
+    <label style="margin-top:16px">New setup name</label>
+    <input type="text" id="newProfile" placeholder="e.g. Keyur" onkeydown="if(event.key==='Enter')createProfile()" />
+    <button class="btn-success" onclick="createProfile()">+ Create &amp; Open</button>
+    <span class="auth-link" onclick="lockApp()">🔒 Lock app</span>
+  </div>
+</div>
+
 <!-- ===== APP ===== -->
 <div class="app" id="appRoot" style="display:none">
-  <div class="topbar"><div class="topbar-row"><h1 id="topTitle">Bill Splitter</h1><button class="btn-lock" onclick="lockApp()">🔒 Lock</button></div></div>
+  <div class="topbar"><div class="topbar-row"><h1 id="topTitle">Bill Splitter</h1><div class="actions"><button class="btn-lock" onclick="switchProfile()">↔ Switch</button><button class="btn-lock" onclick="lockApp()">🔒 Lock</button></div></div></div>
+  <div class="profile-label" id="profileLabel"></div>
   <div class="tabs">
     <button class="tab-btn active" id="tabHome" onclick="showTab('home')">
       <span class="tab-icon">🧾</span><span class="tab-lbl">BILLS</span>
@@ -126,6 +152,7 @@ input[type=number]{-moz-appearance:textfield}
         <div class="grand-txt" id="grandLbl"></div>
         <div class="tbl-scroll"><table class="tbl" id="resTbl"></table></div>
       </div>
+      <div id="resSettle"></div>
       <div class="dl-row">
         <button class="btn-dl" onclick="openReport(false)">⬇ Download PDF</button>
         <button class="btn-print" onclick="openReport(true)">🖨 Print</button>
@@ -174,15 +201,73 @@ function doUnlock(){
 }
 function unlock(){
   document.getElementById('authScreen').style.display='none';
-  document.getElementById('appRoot').style.display='block';
-  loadData(); showTab('home'); window.scrollTo(0,0);
+  showProfiles();
 }
 function lockApp(){
-  saveData();
+  saveData(); activeProfile=null;
   document.getElementById('appRoot').style.display='none';
+  document.getElementById('profileScreen').style.display='none';
   document.getElementById('authScreen').style.display='flex';
   renderAuth();
 }
+
+/* ===================== SETUPS (one per person) ===================== */
+var activeProfile=null;
+function getProfiles(){try{return JSON.parse(localStorage.getItem('bs_profiles')||'[]');}catch(e){return [];}}
+function setProfiles(a){localStorage.setItem('bs_profiles',JSON.stringify(a));}
+function profileKey(n){return 'bs_data_'+n;}
+
+function showProfiles(){
+  saveData(); activeProfile=null;
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('appRoot').style.display='none';
+  document.getElementById('profileScreen').style.display='flex';
+  /* migrate an older single setup, if present, into a named setup */
+  if(!getProfiles().length && localStorage.getItem('bs_appdata')){
+    localStorage.setItem(profileKey('My Setup'),localStorage.getItem('bs_appdata'));
+    localStorage.removeItem('bs_appdata');
+    setProfiles(['My Setup']);
+  }
+  renderProfiles();
+}
+function renderProfiles(){
+  var el=document.getElementById('profileList'); el.innerHTML='';
+  var profs=getProfiles();
+  if(!profs.length){el.innerHTML='<div style="font-size:.78rem;color:#999;margin-bottom:4px">No setups yet — create your first one below.</div>';return;}
+  profs.forEach(function(n){
+    var safe=n.replace(/'/g,"\\'");
+    var d=document.createElement('div'); d.className='profile-row';
+    d.innerHTML='<span class="pname" onclick="openProfile(\''+safe+'\')">👤 '+n+'</span>'
+      +'<button class="profile-open" onclick="openProfile(\''+safe+'\')">Open</button>'
+      +'<button class="btn-danger" onclick="deleteProfile(\''+safe+'\')">x</button>';
+    el.appendChild(d);
+  });
+}
+function createProfile(){
+  var n=document.getElementById('newProfile').value.trim();
+  if(!n) return;
+  var profs=getProfiles();
+  if(profs.indexOf(n)===-1){
+    profs.push(n); setProfiles(profs);
+    localStorage.setItem(profileKey(n),JSON.stringify({couples:[],bills:[]}));  // new setup starts empty
+  }
+  document.getElementById('newProfile').value='';
+  openProfile(n);
+}
+function deleteProfile(n){
+  if(!confirm('Delete setup "'+n+'" and all its bills & groups?')) return;
+  setProfiles(getProfiles().filter(function(x){return x!==n;}));
+  localStorage.removeItem(profileKey(n));
+  renderProfiles();
+}
+function openProfile(n){
+  activeProfile=n; loadData();
+  document.getElementById('profileScreen').style.display='none';
+  document.getElementById('appRoot').style.display='block';
+  document.getElementById('profileLabel').textContent='Setup: '+n;
+  showTab('home'); window.scrollTo(0,0);
+}
+function switchProfile(){ showProfiles(); }
 
 /* ===================== DATA (saved on this device) ===================== */
 function defaultCouples(){return [
@@ -203,12 +288,14 @@ var couples=defaultCouples();
 var bills=defaultBills();
 
 function loadData(){
-  var raw=localStorage.getItem('bs_appdata');
+  couples=defaultCouples(); bills=defaultBills();
+  if(!activeProfile) return;
+  var raw=localStorage.getItem(profileKey(activeProfile));
   if(raw){try{var d=JSON.parse(raw);couples=d.couples||defaultCouples();bills=d.bills||defaultBills();}catch(e){}}
 }
 function saveData(){
-  if(document.getElementById('appRoot').style.display==='none') return;
-  localStorage.setItem('bs_appdata',JSON.stringify({couples:couples,bills:bills}));
+  if(!activeProfile) return;
+  localStorage.setItem(profileKey(activeProfile),JSON.stringify({couples:couples,bills:bills}));
 }
 
 /* ===================== BILL SPLITTER ===================== */
@@ -282,11 +369,17 @@ function renderBills(){
       return '<span class="chip'+(on?' on':'')+'" onclick="togglePerson('+bi+',\''+p+'\')">'+(on?'+ ':'')+p+'</span>';
     }).join('');
     chips+='<span class="chip all-btn" onclick="selectAll('+bi+')">All</span>';
+    var payerOpts='<option value="">— not set —</option>'+people.map(function(p){
+      return '<option value="'+p+'"'+(b.payer===p?' selected':'')+'>'+p+'</option>';
+    }).join('');
     d.innerHTML='<div class="bill-top">'
       +'<div><label>Bill name</label><input type="text" value="'+b.name+'"'+(b.locked?' readonly':'')+' oninput="bills['+bi+'].name=this.value" /></div>'
       +'<div><label>Amount</label><input type="number" value="'+b.amount+'" step="0.01" min="0" oninput="bills['+bi+'].amount=parseFloat(this.value)||0" /></div>'
       +'<button class="btn-danger" style="margin-top:20px" onclick="removeBill('+bi+')"'+(b.locked?' disabled style="opacity:.3"':'')+'>x</button>'
-      +'</div><div class="chip-label">Split between</div><div class="chip-group">'+chips+'</div>';
+      +'</div>'
+      +'<div class="chip-label">Paid by</div>'
+      +'<select class="payer-select" onchange="bills['+bi+'].payer=this.value||null">'+payerOpts+'</select>'
+      +'<div class="chip-label" style="margin-top:9px">Split between</div><div class="chip-group">'+chips+'</div>';
     el.appendChild(d);
   });
 }
@@ -299,7 +392,7 @@ function togglePerson(bi,p){
   renderBills();
 }
 function selectAll(bi){bills[bi].members=null;renderBills();}
-function addBill(){bills.push({name:'New Bill',amount:0,locked:false,members:null});renderBills();}
+function addBill(){bills.push({name:'New Bill',amount:0,locked:false,members:null,payer:null});renderBills();}
 function removeBill(i){if(!bills[i].locked){bills.splice(i,1);renderBills();}}
 
 function computeTotals(){
@@ -315,6 +408,32 @@ function computeTotals(){
   return t;
 }
 
+/* Work out who paid, what each owes, and the simplest set of payments to settle up */
+function settlementData(){
+  var people=getAllPeople();
+  var owed=computeTotals();                 // each person's share of the bills
+  var paid={}; people.forEach(function(p){paid[p]=0;});
+  bills.forEach(function(b){ if(b.payer && paid[b.payer]!==undefined) paid[b.payer]+=b.amount; });
+  var net=people.map(function(p){
+    return {name:p, paid:(paid[p]||0), owed:(owed[p]||0), net:(paid[p]||0)-(owed[p]||0)};
+  });
+  // net > 0  => paid more than their share => should RECEIVE
+  // net < 0  => paid less than their share => should PAY
+  var debtors=net.filter(function(x){return x.net<-0.005;}).map(function(x){return {name:x.name,amt:-x.net};});
+  var creditors=net.filter(function(x){return x.net>0.005;}).map(function(x){return {name:x.name,amt:x.net};});
+  debtors.sort(function(a,b){return b.amt-a.amt;});
+  creditors.sort(function(a,b){return b.amt-a.amt;});
+  var tx=[],i=0,j=0;
+  while(i<debtors.length && j<creditors.length){
+    var pay=Math.min(debtors[i].amt,creditors[j].amt);
+    tx.push({from:debtors[i].name,to:creditors[j].name,amount:pay});
+    debtors[i].amt-=pay; creditors[j].amt-=pay;
+    if(debtors[i].amt<0.005) i++;
+    if(creditors[j].amt<0.005) j++;
+  }
+  return {net:net, tx:tx, anyPayer:bills.some(function(b){return b.payer;})};
+}
+
 function calculate(){
   var people=getAllPeople();
   var totals=computeTotals();
@@ -328,16 +447,18 @@ function calculate(){
     var pRows=c.members.map(function(m){
       return '<div class="cs-row"><span>'+m+'</span><span>$'+(totals[m]||0).toFixed(2)+'</span></div>';
     }).join('');
+    var combinedRow = c.members.length>1
+      ? '<div class="cs-sep"></div><div class="cs-total"><span>Combined</span><span class="c'+col+'">$'+combined.toFixed(2)+'</span></div>'
+      : '';
     rc.innerHTML+='<div class="cs-card">'
       +'<div class="cs-head hd'+col+'"><span class="dot dot'+col+'"></span>'+c.name+'</div>'
-      +'<div class="cs-body">'+pRows+'<div class="cs-sep"></div>'
-      +'<div class="cs-total"><span>Combined</span><span class="c'+col+'">$'+combined.toFixed(2)+'</span></div>'
+      +'<div class="cs-body">'+pRows+combinedRow
       +'</div></div>';
   });
 
   document.getElementById('grandLbl').textContent='Grand total: $'+grand.toFixed(2);
 
-  var hdr='<thead><tr><th>Bill</th><th>Amt</th><th>Div</th>';
+  var hdr='<thead><tr><th>Bill</th><th>Amt</th><th style="text-align:left">Paid By</th><th>Div</th>';
   couples.forEach(function(c,ci){
     c.members.forEach(function(m){hdr+='<th class="c'+(ci%5)+'">'+m+'</th>';});
   });
@@ -347,7 +468,7 @@ function calculate(){
   bills.forEach(function(b){
     var mem=b.members?b.members.filter(function(m){return people.includes(m);}):people;
     var share=mem.length?b.amount/mem.length:0;
-    var row='<tr class="btd"><td>'+b.name+'</td><td>$'+b.amount.toFixed(2)+'</td><td>'+mem.length+'</td>';
+    var row='<tr class="btd"><td>'+b.name+'</td><td>$'+b.amount.toFixed(2)+'</td><td style="text-align:left;color:#555">'+(b.payer||'—')+'</td><td>'+mem.length+'</td>';
     couples.forEach(function(c,ci){
       c.members.forEach(function(m){
         row+=mem.includes(m)?'<td class="c'+(ci%5)+'">$'+share.toFixed(2)+'</td>':'<td style="color:#ccc">-</td>';
@@ -356,19 +477,53 @@ function calculate(){
     body+=row+'</tr>';
   });
 
-  var tot='<tr class="tot-r"><td>Total</td><td>$'+grand.toFixed(2)+'</td><td></td>';
+  var tot='<tr class="tot-r"><td>Total</td><td>$'+grand.toFixed(2)+'</td><td></td><td></td>';
   couples.forEach(function(c,ci){
     c.members.forEach(function(m){tot+='<td class="c'+(ci%5)+'">$'+(totals[m]||0).toFixed(2)+'</td>';});
   });
   body+=tot+'</tr>';
 
-  var cRow='<tr class="cpl-r"><td style="color:#aaa;font-size:.65rem">Couple</td><td></td><td></td>';
+  var cRow='<tr class="cpl-r"><td style="color:#aaa;font-size:.65rem">Couple</td><td></td><td></td><td></td>';
+  var anyMulti=false;
   couples.forEach(function(c,ci){
-    var combined=c.members.reduce(function(s,p){return s+(totals[p]||0);},0);
-    cRow+='<td colspan="'+c.members.length+'" class="c'+(ci%5)+'" style="text-align:center">$'+combined.toFixed(2)+'</td>';
+    if(c.members.length>1){
+      anyMulti=true;
+      var combined=c.members.reduce(function(s,p){return s+(totals[p]||0);},0);
+      cRow+='<td colspan="'+c.members.length+'" class="c'+(ci%5)+'" style="text-align:center">$'+combined.toFixed(2)+'</td>';
+    } else {
+      cRow+='<td></td>';
+    }
   });
-  body+=cRow+'</tr></tbody>';
+  body+=(anyMulti?cRow+'</tr>':'')+'</tbody>';
   document.getElementById('resTbl').innerHTML=hdr+body;
+
+  /* ---- Settlement: who owes whom ---- */
+  var s=settlementData();
+  var sh='<div class="card"><div class="sec-label">Who Owes Whom</div>';
+  if(!s.anyPayer){
+    sh+='<div style="font-size:.8rem;color:#999">Set <b>Paid by</b> on your bills (back on the Edit screen) to see who owes whom.</div>';
+  } else if(!s.tx.length){
+    sh+='<div style="font-size:.85rem;color:#1a7a3c;font-weight:600">All settled up! 🎉</div>';
+  } else {
+    s.tx.forEach(function(t){
+      sh+='<div class="settle-row"><span><b>'+t.from+'</b><span class="settle-arrow">→</span><b>'+t.to+'</b></span>'
+        +'<span class="settle-amt">$'+t.amount.toFixed(2)+'</span></div>';
+    });
+  }
+  if(s.anyPayer){
+    sh+='<div class="cs-sep" style="margin:11px 0 7px"></div>';
+    s.net.forEach(function(x){
+      var label,color;
+      if(x.net>0.005){label='gets back $'+x.net.toFixed(2);color='#15803d';}
+      else if(x.net<-0.005){label='owes $'+(-x.net).toFixed(2);color='#b91c1c';}
+      else {label='settled';color='#888';}
+      sh+='<div class="net-row"><span>'+x.name
+        +' <span style="color:#bbb;font-size:.68rem">(paid $'+x.paid.toFixed(2)+' · share $'+x.owed.toFixed(2)+')</span></span>'
+        +'<span style="font-weight:700;color:'+color+'">'+label+'</span></div>';
+    });
+  }
+  sh+='</div>';
+  document.getElementById('resSettle').innerHTML=sh;
 
   document.getElementById('homeSetup').style.display='none';
   document.getElementById('homeResults').style.display='block';
@@ -397,17 +552,20 @@ function buildReportHTML(autoPrint){
       rows+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:#555">'
         +'<span>'+m+'</span><b style="color:#222">$'+(totals[m]||0).toFixed(2)+'</b></div>';
     });
+    var combinedBlock = c.members.length>1
+      ? '<div style="height:1px;background:#eee;margin:6px 0"></div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700">'
+        +'<span>Combined</span><span style="color:'+col+'">$'+combined.toFixed(2)+'</span></div>'
+      : '';
     coupleHTML+='<div style="flex:1;min-width:150px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb">'
       +'<div style="background:'+bg+';color:'+col+';padding:8px 12px;font-size:12px;font-weight:700">'+c.name+'</div>'
-      +'<div style="padding:10px 12px;background:#fff">'+rows
-      +'<div style="height:1px;background:#eee;margin:6px 0"></div>'
-      +'<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700">'
-      +'<span>Combined</span><span style="color:'+col+'">$'+combined.toFixed(2)+'</span></div>'
+      +'<div style="padding:10px 12px;background:#fff">'+rows+combinedBlock
       +'</div></div>';
   });
 
   var thHTML='<th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;background:#f8f9fb">Bill</th>'
     +'<th style="padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;text-align:right;background:#f8f9fb">Amount</th>'
+    +'<th style="padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;text-align:left;background:#f8f9fb">Paid By</th>'
     +'<th style="padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;text-align:right;background:#f8f9fb">Split</th>';
   couples.forEach(function(c,ci){
     c.members.forEach(function(m){
@@ -422,6 +580,7 @@ function buildReportHTML(autoPrint){
     var row='<tr style="background:#f8f9fb">'
       +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0">'+b.name+'</td>'
       +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">$'+b.amount.toFixed(2)+'</td>'
+      +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:left;color:#555">'+(b.payer||'—')+'</td>'
       +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right;color:#aaa">'+mem.length+'</td>';
     couples.forEach(function(c,ci){
       c.members.forEach(function(m){
@@ -438,6 +597,7 @@ function buildReportHTML(autoPrint){
   var totRow='<tr>'
     +'<td style="padding:9px 8px;font-weight:700;border-top:2px solid #e5e7eb">Individual Total</td>'
     +'<td style="padding:9px 8px;font-weight:700;border-top:2px solid #e5e7eb;text-align:right">$'+grand.toFixed(2)+'</td>'
+    +'<td style="border-top:2px solid #e5e7eb"></td>'
     +'<td style="border-top:2px solid #e5e7eb"></td>';
   couples.forEach(function(c,ci){
     c.members.forEach(function(m){
@@ -446,12 +606,47 @@ function buildReportHTML(autoPrint){
   });
   totRow+='</tr>';
 
-  var cplRow='<tr><td style="padding:4px 8px 10px;font-size:10px;color:#aaa">Couple Total</td><td></td><td></td>';
+  var cplRow='<tr><td style="padding:4px 8px 10px;font-size:10px;color:#aaa">Couple Total</td><td></td><td></td><td></td>';
+  var anyMultiR=false;
   couples.forEach(function(c,ci){
-    var combined=c.members.reduce(function(s,p){return s+(totals[p]||0);},0);
-    cplRow+='<td colspan="'+c.members.length+'" style="padding:4px 8px 10px;font-weight:700;text-align:center;color:'+clrs[ci%5]+'">$'+combined.toFixed(2)+'</td>';
+    if(c.members.length>1){
+      anyMultiR=true;
+      var combined=c.members.reduce(function(s,p){return s+(totals[p]||0);},0);
+      cplRow+='<td colspan="'+c.members.length+'" style="padding:4px 8px 10px;font-weight:700;text-align:center;color:'+clrs[ci%5]+'">$'+combined.toFixed(2)+'</td>';
+    } else {
+      cplRow+='<td></td>';
+    }
   });
-  cplRow+='</tr>';
+  cplRow=anyMultiR?(cplRow+'</tr>'):'';
+
+  /* ---- Settlement block for the report ---- */
+  var s=settlementData();
+  var settleHTML='';
+  if(s.anyPayer){
+    var txHTML='';
+    if(s.tx.length){
+      s.tx.forEach(function(t){
+        txHTML+='<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px">'
+          +'<span><b>'+t.from+'</b> &rarr; <b>'+t.to+'</b></span>'
+          +'<b style="color:#1a2340">$'+t.amount.toFixed(2)+'</b></div>';
+      });
+    } else {
+      txHTML='<div style="font-size:13px;color:#15803d;font-weight:700">All settled up.</div>';
+    }
+    var netHTML='';
+    s.net.forEach(function(x){
+      var label,color;
+      if(x.net>0.005){label='gets back $'+x.net.toFixed(2);color='#15803d';}
+      else if(x.net<-0.005){label='owes $'+(-x.net).toFixed(2);color='#b91c1c';}
+      else {label='settled';color='#888';}
+      netHTML+='<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#666">'
+        +'<span>'+x.name+' <span style="color:#bbb">(paid $'+x.paid.toFixed(2)+' / share $'+x.owed.toFixed(2)+')</span></span>'
+        +'<b style="color:'+color+'">'+label+'</b></div>';
+    });
+    settleHTML='<h2 style="margin-top:26px">Who Owes Whom</h2>'
+      +'<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;max-width:480px">'
+      +txHTML+'<div style="height:1px;background:#eee;margin:9px 0"></div>'+netHTML+'</div>';
+  }
 
   var printScript=autoPrint?'<script>window.onload=function(){window.print();}<\/script>':'';
 
@@ -468,7 +663,7 @@ function buildReportHTML(autoPrint){
     +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">'+coupleHTML+'</div>'
     +'<table><thead><tr>'+thHTML+'</tr></thead>'
     +'<tbody>'+tbHTML+totRow+cplRow+'</tbody>'
-    +'</table></body></html>';
+    +'</table>'+settleHTML+'</body></html>';
 }
 
 function openReport(autoPrint){
