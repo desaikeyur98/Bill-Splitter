@@ -7,7 +7,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh}
-.app{max-width:600px;margin:0 auto;padding-bottom:20px}
+.app{max-width:600px;margin:0 auto;display:flex;flex-direction:column;height:100vh;height:100dvh}
 .topbar{background:#1a2340;padding:14px 16px}
 .topbar h1{color:#fff;font-size:.95rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
 .tabs{background:#fff;border-bottom:1px solid #e5e7eb;display:flex;box-shadow:0 2px 6px rgba(0,0,0,.06)}
@@ -16,8 +16,17 @@ body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh}
 .tab-icon{font-size:18px;line-height:1}
 .tab-lbl{font-size:.65rem;font-weight:600;letter-spacing:.3px;color:#aaa}
 .tab-btn.active .tab-lbl{color:#2d7dd2}
-.page{display:none;padding:14px}
-.page.active{display:block}
+.page{display:none;padding:14px;flex:1;min-height:0}
+.page.active{display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* Home setup: static groups header on top, scrolling bills in the middle, static Calculate button at the bottom */
+#homeSetup{display:flex;flex-direction:column;flex:1;min-height:0}
+.home-card{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;margin-bottom:14px}
+.home-fixed{flex-shrink:0}
+.bills-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.bills-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+#homeSetup .btn-success{flex-shrink:0}
+.bill-date{font-size:.65rem;color:#999;margin-bottom:8px;display:flex;align-items:center;gap:4px}
+@media(max-width:400px){.bill-top{grid-template-columns:1fr 84px 40px}}
 .card{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(0,0,0,.07);padding:16px;margin-bottom:14px}
 .sec-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#2d7dd2;margin-bottom:12px}
 label{font-size:.75rem;color:#555;font-weight:500;display:block;margin-bottom:4px}
@@ -30,7 +39,10 @@ input[type=number]{-moz-appearance:textfield}
 .btn-dl{background:#1a2340;color:#fff;flex:1;padding:13px;font-size:.85rem;border-radius:10px;border:none;font-weight:700;cursor:pointer;touch-action:manipulation}
 .btn-print{background:#2d7dd2;color:#fff;flex:1;padding:13px;font-size:.85rem;border-radius:10px;border:none;font-weight:700;cursor:pointer;touch-action:manipulation}
 .btn-outline{background:#fff;color:#444;border:1.5px solid #d0d5dd;font-size:.78rem;padding:8px 14px;border-radius:8px;cursor:pointer}
-.btn-danger{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:7px 10px;font-size:.8rem;cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.btn-danger{background:#8a1c1c;color:#fff;border:none;border-radius:8px;height:40px;width:40px;padding:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation}
+.btn-danger:hover{background:#7a1414}
+.btn-danger:disabled{opacity:.3;cursor:default}
+.btn-danger svg{width:17px;height:17px;display:block}
 .btn-add{background:#eff6ff;color:#2d7dd2;border:1.5px dashed #93c5fd;border-radius:8px;padding:9px;font-size:.8rem;font-weight:600;cursor:pointer;width:100%;text-align:center;touch-action:manipulation}
 .back-btn{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #d0d5dd;border-radius:8px;padding:8px 14px;font-size:.8rem;font-weight:600;cursor:pointer;margin-bottom:14px;touch-action:manipulation}
 .couple-block{background:#f8f9fb;border-radius:10px;padding:13px;margin-bottom:10px;border:1px solid #eee}
@@ -42,7 +54,7 @@ input[type=number]{-moz-appearance:textfield}
 .couple-pill{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;font-size:.75rem;font-weight:600;border:1.5px solid}
 .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .bill-block{background:#f8f9fb;border-radius:10px;padding:13px;margin-bottom:10px;border:1px solid #eee}
-.bill-top{display:grid;grid-template-columns:1fr 100px 36px;gap:8px;align-items:end;margin-bottom:10px}
+.bill-top{display:grid;grid-template-columns:1fr 100px 40px;gap:8px;align-items:end;margin-bottom:10px}
 .chip-label{font-size:.68rem;color:#888;margin-bottom:5px;font-weight:500}
 .chip-group{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:6px 11px;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;border:1.5px solid #d0d5dd;background:#fff;color:#666;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -137,14 +149,16 @@ input[type=number]{-moz-appearance:textfield}
   <!-- HOME -->
   <div class="page active" id="pageHome">
     <div id="homeSetup">
-      <div class="card">
-        <div class="sec-label">Groups</div>
-        <div class="couple-pills" id="homePills"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div class="sec-label" style="margin:0">Bills</div>
-          <button class="btn-outline" onclick="addBill()">+ Add Bill</button>
+      <div class="card home-card">
+        <div class="home-fixed">
+          <div class="sec-label">Groups</div>
+          <div class="couple-pills" id="homePills"></div>
+          <div class="bills-head">
+            <div class="sec-label" style="margin:0">Bills</div>
+            <button class="btn-outline" onclick="addBill()">+ Add Bill</button>
+          </div>
         </div>
-        <div id="billsList"></div>
+        <div class="bills-scroll"><div id="billsList"></div></div>
       </div>
       <button class="btn-success" onclick="calculate()">Calculate Split</button>
     </div>
@@ -186,7 +200,10 @@ input[type=number]{-moz-appearance:textfield}
    so this is a gate to keep casual users out — not bank-grade
    security.
    ============================================================ */
-var MASTER_PASSWORD = 'Hstk@0246';
+var MASTER_PASSWORD = '1234';
+
+/* White trash icon used on every delete button */
+var TRASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 
 function renderAuth(){
   var c=document.getElementById('authCard');
@@ -244,7 +261,7 @@ function renderProfiles(){
     var d=document.createElement('div'); d.className='profile-row';
     d.innerHTML='<span class="pname" onclick="openProfile(\''+safe+'\')">👤 '+n+'</span>'
       +'<button class="profile-open" onclick="openProfile(\''+safe+'\')">Open</button>'
-      +'<button class="btn-danger" onclick="deleteProfile(\''+safe+'\')">x</button>';
+      +'<button class="btn-danger" title="Delete setup" onclick="deleteProfile(\''+safe+'\')">'+TRASH+'</button>';
     el.appendChild(d);
   });
 }
@@ -332,13 +349,13 @@ function renderCouples(){
     c.members.forEach(function(m,mi){
       mHTML+='<div class="member-row">'
         +'<input type="text" value="'+m+'" placeholder="Name" oninput="couples['+ci+'].members['+mi+']=this.value;renderHomePills();renderBills()" />'
-        +'<button class="btn-danger" onclick="removeMember('+ci+','+mi+')">x</button>'
+        +'<button class="btn-danger" title="Delete member" onclick="removeMember('+ci+','+mi+')">'+TRASH+'</button>'
         +'</div>';
     });
     d.innerHTML='<div class="couple-block-head">'
       +'<span class="dot dot'+(ci%5)+'" style="width:10px;height:10px"></span>'
       +'<input type="text" value="'+c.name+'" oninput="couples['+ci+'].name=this.value;renderHomePills()" />'
-      +'<button class="btn-danger" onclick="removeCouple('+ci+')">x</button>'
+      +'<button class="btn-danger" title="Delete group" onclick="removeCouple('+ci+')">'+TRASH+'</button>'
       +'</div>'+mHTML
       +'<button class="btn-add" style="padding:7px;font-size:.73rem;margin-top:4px" onclick="addMember('+ci+')">+ Add Member</button>';
     el.appendChild(d);
@@ -377,10 +394,11 @@ function renderBills(){
     var payerOpts='<option value="">— not set —</option>'+people.map(function(p){
       return '<option value="'+p+'"'+(b.payer===p?' selected':'')+'>'+p+'</option>';
     }).join('');
-    d.innerHTML='<div class="bill-top">'
+    var dateHTML=b.added?'<div class="bill-date">🕒 Added: '+b.added+'</div>':'';
+    d.innerHTML=dateHTML+'<div class="bill-top">'
       +'<div><label>Bill name</label><input type="text" value="'+b.name+'"'+(b.locked?' readonly':'')+' oninput="bills['+bi+'].name=this.value" /></div>'
       +'<div><label>Amount</label><input type="number" value="'+b.amount+'" step="0.01" min="0" oninput="bills['+bi+'].amount=parseFloat(this.value)||0" /></div>'
-      +'<button class="btn-danger" style="margin-top:20px" onclick="removeBill('+bi+')"'+(b.locked?' disabled style="opacity:.3"':'')+'>x</button>'
+      +'<button class="btn-danger" title="Delete bill" onclick="removeBill('+bi+')"'+(b.locked?' disabled':'')+'>'+TRASH+'</button>'
       +'</div>'
       +'<div class="chip-label">Paid by</div>'
       +'<select class="payer-select" onchange="bills['+bi+'].payer=this.value||null">'+payerOpts+'</select>'
@@ -397,7 +415,11 @@ function togglePerson(bi,p){
   renderBills();
 }
 function selectAll(bi){bills[bi].members=null;renderBills();}
-function addBill(){bills.push({name:'New Bill',amount:0,locked:false,members:null,payer:null});renderBills();}
+function addBill(){
+  var added=new Date().toLocaleString();
+  bills.unshift({name:'New Bill',amount:0,locked:false,members:null,payer:null,added:added});  // newest bill goes to the top
+  renderBills();
+}
 function removeBill(i){if(!bills[i].locked){bills.splice(i,1);renderBills();}}
 
 function computeTotals(){
@@ -463,7 +485,7 @@ function calculate(){
 
   document.getElementById('grandLbl').textContent='Grand total: $'+grand.toFixed(2);
 
-  var hdr='<thead><tr><th>Bill</th><th>Amt</th><th style="text-align:left">Paid By</th><th>Div</th>';
+  var hdr='<thead><tr><th style="text-align:left">Date/Time</th><th>Bill</th><th>Amt</th><th style="text-align:left">Paid By</th><th>Div</th>';
   couples.forEach(function(c,ci){
     c.members.forEach(function(m){hdr+='<th class="c'+(ci%5)+'">'+m+'</th>';});
   });
@@ -473,7 +495,7 @@ function calculate(){
   bills.forEach(function(b){
     var mem=b.members?b.members.filter(function(m){return people.includes(m);}):people;
     var share=mem.length?b.amount/mem.length:0;
-    var row='<tr class="btd"><td>'+b.name+'</td><td>$'+b.amount.toFixed(2)+'</td><td style="text-align:left;color:#555">'+(b.payer||'—')+'</td><td>'+mem.length+'</td>';
+    var row='<tr class="btd"><td style="text-align:left;color:#777;white-space:nowrap">'+(b.added||'—')+'</td><td>'+b.name+'</td><td>$'+b.amount.toFixed(2)+'</td><td style="text-align:left;color:#555">'+(b.payer||'—')+'</td><td>'+mem.length+'</td>';
     couples.forEach(function(c,ci){
       c.members.forEach(function(m){
         row+=mem.includes(m)?'<td class="c'+(ci%5)+'">$'+share.toFixed(2)+'</td>':'<td style="color:#ccc">-</td>';
@@ -482,13 +504,13 @@ function calculate(){
     body+=row+'</tr>';
   });
 
-  var tot='<tr class="tot-r"><td>Total</td><td>$'+grand.toFixed(2)+'</td><td></td><td></td>';
+  var tot='<tr class="tot-r"><td></td><td>Total</td><td>$'+grand.toFixed(2)+'</td><td></td><td></td>';
   couples.forEach(function(c,ci){
     c.members.forEach(function(m){tot+='<td class="c'+(ci%5)+'">$'+(totals[m]||0).toFixed(2)+'</td>';});
   });
   body+=tot+'</tr>';
 
-  var cRow='<tr class="cpl-r"><td style="color:#aaa;font-size:.65rem">Couple</td><td></td><td></td><td></td>';
+  var cRow='<tr class="cpl-r"><td></td><td style="color:#aaa;font-size:.65rem">Couple</td><td></td><td></td><td></td>';
   var anyMulti=false;
   couples.forEach(function(c,ci){
     if(c.members.length>1){
@@ -536,7 +558,7 @@ function calculate(){
 }
 
 function backToSetup(){
-  document.getElementById('homeSetup').style.display='block';
+  document.getElementById('homeSetup').style.display='flex';
   document.getElementById('homeResults').style.display='none';
 }
 
@@ -568,7 +590,8 @@ function buildReportHTML(autoPrint){
       +'</div></div>';
   });
 
-  var thHTML='<th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;background:#f8f9fb">Bill</th>'
+  var thHTML='<th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;background:#f8f9fb">Date/Time</th>'
+    +'<th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;background:#f8f9fb">Bill</th>'
     +'<th style="padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;text-align:right;background:#f8f9fb">Amount</th>'
     +'<th style="padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;text-align:left;background:#f8f9fb">Paid By</th>'
     +'<th style="padding:6px 8px;font-size:10px;text-transform:uppercase;color:#888;border-bottom:2px solid #eee;text-align:right;background:#f8f9fb">Split</th>';
@@ -583,6 +606,7 @@ function buildReportHTML(autoPrint){
     var mem=b.members?b.members.filter(function(m){return people.includes(m);}):people;
     var share=mem.length?b.amount/mem.length:0;
     var row='<tr style="background:#f8f9fb">'
+      +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0;color:#777;white-space:nowrap">'+(b.added||'—')+'</td>'
       +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0">'+b.name+'</td>'
       +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:right">$'+b.amount.toFixed(2)+'</td>'
       +'<td style="padding:6px 8px;font-size:11px;border-bottom:1px solid #f0f0f0;text-align:left;color:#555">'+(b.payer||'—')+'</td>'
@@ -600,6 +624,7 @@ function buildReportHTML(autoPrint){
   });
 
   var totRow='<tr>'
+    +'<td style="border-top:2px solid #e5e7eb"></td>'
     +'<td style="padding:9px 8px;font-weight:700;border-top:2px solid #e5e7eb">Individual Total</td>'
     +'<td style="padding:9px 8px;font-weight:700;border-top:2px solid #e5e7eb;text-align:right">$'+grand.toFixed(2)+'</td>'
     +'<td style="border-top:2px solid #e5e7eb"></td>'
@@ -611,7 +636,7 @@ function buildReportHTML(autoPrint){
   });
   totRow+='</tr>';
 
-  var cplRow='<tr><td style="padding:4px 8px 10px;font-size:10px;color:#aaa">Couple Total</td><td></td><td></td><td></td>';
+  var cplRow='<tr><td></td><td style="padding:4px 8px 10px;font-size:10px;color:#aaa">Couple Total</td><td></td><td></td><td></td>';
   var anyMultiR=false;
   couples.forEach(function(c,ci){
     if(c.members.length>1){
