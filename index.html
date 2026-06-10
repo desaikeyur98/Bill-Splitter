@@ -96,6 +96,8 @@ input[type=number]{-moz-appearance:textfield}
 .profile-row{display:flex;align-items:center;gap:8px;background:#f8f9fb;border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:9px}
 .profile-row .pname{flex:1;font-weight:700;font-size:.88rem;color:#222;cursor:pointer}
 .profile-open{background:#1a7a3c;color:#fff;border:none;border-radius:7px;padding:7px 13px;font-size:.76rem;font-weight:600;cursor:pointer}
+.footer{text-align:center;font-size:.68rem;color:#9aa3b2;padding:18px 10px 8px;line-height:1.5}
+.auth-copyright{text-align:center;font-size:.68rem;color:#aab;margin-top:18px}
 </style>
 </head>
 <body>
@@ -115,6 +117,7 @@ input[type=number]{-moz-appearance:textfield}
     <input type="text" id="newProfile" placeholder="e.g. Keyur" onkeydown="if(event.key==='Enter')createProfile()" />
     <button class="btn-success" onclick="createProfile()">+ Create &amp; Open</button>
     <span class="auth-link" onclick="lockApp()">🔒 Lock app</span>
+    <div class="auth-copyright">© <span class="cyear"></span> Keshtha IT Solutions</div>
   </div>
 </div>
 
@@ -169,6 +172,7 @@ input[type=number]{-moz-appearance:textfield}
       <button class="btn-add" onclick="addCouple()">+ Add Couple / Group</button>
     </div>
   </div>
+  <div class="footer">© <span class="cyear"></span> Keshtha IT Solutions · All rights reserved</div>
 </div>
 
 <script>
@@ -191,7 +195,8 @@ function renderAuth(){
     +'<label>Master password</label>'
     +'<input type="password" id="mp1" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')doUnlock()" />'
     +'<div class="auth-err" id="authErr"></div>'
-    +'<button class="btn-success" onclick="doUnlock()">Unlock</button>';
+    +'<button class="btn-success" onclick="doUnlock()">Unlock</button>'
+    +'<div class="auth-copyright">© '+(new Date().getFullYear())+' Keshtha IT Solutions</div>';
   setTimeout(function(){var f=document.getElementById('mp1');if(f)f.focus();},50);
 }
 function doUnlock(){
@@ -663,7 +668,9 @@ function buildReportHTML(autoPrint){
     +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">'+coupleHTML+'</div>'
     +'<table><thead><tr>'+thHTML+'</tr></thead>'
     +'<tbody>'+tbHTML+totRow+cplRow+'</tbody>'
-    +'</table>'+settleHTML+'</body></html>';
+    +'</table>'+settleHTML
+    +'<div style="margin-top:30px;text-align:center;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px">© '+(new Date().getFullYear())+' Keshtha IT Solutions · All rights reserved</div>'
+    +'</body></html>';
 }
 
 function openReport(autoPrint){
@@ -681,6 +688,9 @@ function openReport(autoPrint){
 /* Autosave bills/groups to this device */
 setInterval(saveData,1500);
 window.addEventListener('beforeunload',saveData);
+
+/* Fill copyright year in static footers */
+(function(){var y=new Date().getFullYear();var els=document.getElementsByClassName('cyear');for(var i=0;i<els.length;i++)els[i].textContent=y;})();
 
 /* Start at the password gate */
 renderAuth();
